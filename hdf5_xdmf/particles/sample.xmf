@@ -1,0 +1,23 @@
+<?xml version="1.0" ?>
+<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
+<Xdmf Version="2.0">
+  <Domain>
+    <Grid Name="Time = 99">
+      <Topology TopologyType="Polyvertex" NumberOfElements="1000" NodesPerElement="1">
+        <DataItem Dimensions="1000 1" Format="HDF">
+        example.hdf5:/connectivity
+        </DataItem>
+      </Topology>
+      <Geometry GeometryType="XYZ">
+        <DataItem Dimensions="1000 3" Format="HDF">
+        example.hdf5:/X
+        </DataItem>
+      </Geometry>
+      <Attribute Name="Displacement" AttributeType="Vector" Center="Node">
+         <DataItem Dimensions="1000 3" NumberType="Float" Precision="8" Format="HDF">
+          example.hdf5:/U/99
+         </DataItem>
+       </Attribute>
+    </Grid>
+  </Domain>
+</Xdmf>
