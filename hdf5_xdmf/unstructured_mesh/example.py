@@ -54,6 +54,8 @@ xmf = '''<?xml version="1.0" ?>
 </Xdmf>
 '''
 
+# --------------------------------------------------------------------------------------------------
+
 grid = '''<Grid Name="Increment = {inc:d}">
   <Time Value="{inc:d}"/>
   <Topology TopologyType="Quadrilateral" NumberOfElements="4">
@@ -74,11 +76,14 @@ grid = '''<Grid Name="Increment = {inc:d}">
 </Grid>
 '''
 
+# --------------------------------------------------------------------------------------------------
+
+# initialize string that will contain the full time series
 series = ''
 
+# loop over all increments, append the time series
 for inc in range(100):
   series += grid.format(inc=inc)
 
-series = '      '+series.replace('\n','\n      ')
-
-open('example.xmf','w').write(xmf.format(series=series))
+# write xmf-file, fix the indentation
+open('example.xmf','w').write(xmf.format(series='      '+series.replace('\n','\n      ')))

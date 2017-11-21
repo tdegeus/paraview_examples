@@ -37,33 +37,48 @@ xmf = '''<?xml version="1.0" ?>
 <!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
 <Xdmf Version="2.0">
   <Domain>
-    <Grid Name="Time = {inc:d}">
-      <Topology TopologyType="Polyvertex" NumberOfElements="1000" NodesPerElement="1">
-        <DataItem Dimensions="1000 1" Format="HDF">
-        example.hdf5:/connectivity
-        </DataItem>
-      </Topology>
-      <Geometry GeometryType="XYZ">
-        <DataItem Dimensions="1000 3" Format="HDF">
-        example.hdf5:/X
-        </DataItem>
-      </Geometry>
-      <Attribute Name="Radius" AttributeType="Scalar" Center="Node">
-         <DataItem Dimensions="1000" NumberType="Float" Precision="8" Format="HDF">
-          example.hdf5:/R
-         </DataItem>
-      </Attribute>
-      <Attribute Name="Displacement" AttributeType="Vector" Center="Node">
-         <DataItem Dimensions="1000 3" NumberType="Float" Precision="8" Format="HDF">
-          example.hdf5:/U/{inc:d}
-         </DataItem>
-      </Attribute>
+    <Grid Name="TimeSeries" GridType="Collection" CollectionType="Temporal">
+{series:s}
     </Grid>
   </Domain>
 </Xdmf>
 '''
 
+# --------------------------------------------------------------------------------------------------
 
+grid = '''<Grid Name="Time = {inc:d}">
+  <Time Value="{inc:d}"/>
+  <Topology TopologyType="Polyvertex" NumberOfElements="1000" NodesPerElement="1">
+    <DataItem Dimensions="1000 1" Format="HDF">
+    example.hdf5:/connectivity
+    </DataItem>
+  </Topology>
+  <Geometry GeometryType="XYZ">
+    <DataItem Dimensions="1000 3" Format="HDF">
+    example.hdf5:/X
+    </DataItem>
+  </Geometry>
+  <Attribute Name="Radius" AttributeType="Scalar" Center="Node">
+     <DataItem Dimensions="1000" NumberType="Float" Precision="8" Format="HDF">
+      example.hdf5:/R
+     </DataItem>
+  </Attribute>
+  <Attribute Name="Displacement" AttributeType="Vector" Center="Node">
+     <DataItem Dimensions="1000 3" NumberType="Float" Precision="8" Format="HDF">
+      example.hdf5:/U/{inc:d}
+     </DataItem>
+  </Attribute>
+</Grid>
+'''
+
+# --------------------------------------------------------------------------------------------------
+
+# initialize string that will contain the full time series
+series = ''
+
+# loop over all increments, append the time series
 for inc in range(100):
+  series += grid.format(inc=inc)
 
-  open('example_%03d.xmf'%inc,'w').write(xmf.format(inc=inc))
+# write xmf-file, fix the indentation
+open('example.xmf','w').write(xmf.format(series='      '+series.replace('\n','\n      ')))
