@@ -47,28 +47,38 @@ xmf = '''<?xml version="1.0" ?>
 <!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
 <Xdmf Version="2.0">
   <Domain>
-    <Grid Name="Time = {inc:d}">
-      <Topology TopologyType="Quadrilateral" NumberOfElements="4">
-        <DataItem Dimensions="4 4" Format="HDF">
-        example.hdf5:/conn
-        </DataItem>
-      </Topology>
-      <Geometry GeometryType="XY">
-        <DataItem Dimensions="9 2" Format="HDF">
-        example.hdf5:/coor
-        </DataItem>
-      </Geometry>
-      <Attribute Name="Displacement" AttributeType="Vector" Center="Node">
-         <DataItem Dimensions="9 3" NumberType="Float" Precision="8" Format="HDF">
-          example.hdf5:/disp/{inc:d}
-         </DataItem>
-      </Attribute>
+    <Grid Name="TimeSeries" GridType="Collection" CollectionType="Temporal">
+{series:s}
     </Grid>
   </Domain>
 </Xdmf>
 '''
 
+grid = '''<Grid Name="Increment = {inc:d}">
+  <Time Value="{inc:d}"/>
+  <Topology TopologyType="Quadrilateral" NumberOfElements="4">
+    <DataItem Dimensions="4 4" Format="HDF">
+    example.hdf5:/conn
+    </DataItem>
+  </Topology>
+  <Geometry GeometryType="XY">
+    <DataItem Dimensions="9 2" Format="HDF">
+    example.hdf5:/coor
+    </DataItem>
+  </Geometry>
+  <Attribute Name="Displacement" AttributeType="Vector" Center="Node">
+     <DataItem Dimensions="9 3" NumberType="Float" Precision="8" Format="HDF">
+      example.hdf5:/disp/{inc:d}
+     </DataItem>
+  </Attribute>
+</Grid>
+'''
+
+series = ''
 
 for inc in range(100):
+  series += grid.format(inc=inc)
 
-  open('example_%03d.xmf'%inc,'w').write(xmf.format(inc=inc))
+series = '      '+series.replace('\n','\n      ')
+
+open('example.xmf','w').write(xmf.format(series=series))
