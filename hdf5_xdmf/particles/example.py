@@ -2,36 +2,39 @@
 import numpy as np
 import h5py
 
+# ====================== create fictitious configuration + store to HDF5-file ======================
+
 # create grid of particles: 10 particles in each direction, spacing of 1
-x,y,z = np.meshgrid(np.linspace(0,10,10),np.linspace(0,10,10),np.linspace(0,10,10))
+x,y,z   = np.meshgrid(np.linspace(0,10,10),np.linspace(0,10,10),np.linspace(0,10,10))
 
 # convert the list of positions
-X = np.hstack(( x.reshape(-1,1), y.reshape(-1,1), z.reshape(-1,1) ))
+coor       = np.hstack(( x.reshape(-1,1), y.reshape(-1,1), z.reshape(-1,1) ))
 
 # create example radius
-R       = np.ones((X.shape[0]),dtype='float64')
-R[::2] *= 2.
+radius       = np.ones((coor.shape[0]),dtype='float64')
+radius[::2] *= 2.
 
 # open data file
 f = h5py.File('example.hdf5','w')
 
 # write particle positions, and a dummy connectivity
-f.create_dataset('/X',data=X)
-f.create_dataset('/R',data=R)
-f.create_dataset('/connectivity',data=np.arange(X.shape[0]))
+f.create_dataset('/coor'  ,data=coor                    )
+f.create_dataset('/radius',data=radius                  )
+f.create_dataset('/conn'  ,data=np.arange(coor.shape[0]))
 
 # create a sample deformation: simple shear
 for inc,gamma in enumerate(np.linspace(0,1,100)):
 
-  # - initialize displacement
-  U = np.zeros(X.shape,dtype='float64')
+  # - initialize displacement (must be always 3-d in ParaView!)
+  disp = np.zeros((coor.shape[0],3),dtype='float64')
   # - set
-  U[:,0] += gamma * X[:,1]
+  disp[:,0] += gamma * coor[:,1]
   # - store
-  f.create_dataset('/U/%d'%inc,data=U)
+  f.create_dataset('/disp/%d'%inc,data=disp)
 
+# ======================================== write XDMF-file =========================================
 
-# ==================================================================================================
+# --------------------------------- format of the main structure ----------------------------------
 
 xmf = '''<?xml version="1.0" ?>
 <!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
@@ -44,41 +47,41 @@ xmf = '''<?xml version="1.0" ?>
 </Xdmf>
 '''
 
-# --------------------------------------------------------------------------------------------------
+# ----------------------------- format of an increment in time-series ------------------------------
 
-grid = '''<Grid Name="Time = {inc:d}">
+grid = '''<Grid Name="Increment = {inc:d}">
   <Time Value="{inc:d}"/>
-  <Topology TopologyType="Polyvertex" NumberOfElements="1000" NodesPerElement="1">
-    <DataItem Dimensions="1000 1" Format="HDF">
-    example.hdf5:/connectivity
+  <Topology TopologyType="Polyvertex" NumberOfElements="{nnode:d}" NodesPerElement="1">
+    <DataItem Dimensions="{nnode:d} 1" Format="HDF">
+    example.hdf5:/conn
     </DataItem>
   </Topology>
   <Geometry GeometryType="XYZ">
-    <DataItem Dimensions="1000 3" Format="HDF">
-    example.hdf5:/X
+    <DataItem Dimensions="{nnode:d} 3" Format="HDF">
+    example.hdf5:/coor
     </DataItem>
   </Geometry>
   <Attribute Name="Radius" AttributeType="Scalar" Center="Node">
-     <DataItem Dimensions="1000" NumberType="Float" Precision="8" Format="HDF">
-      example.hdf5:/R
+     <DataItem Dimensions="{nnode:d}" NumberType="Float" Precision="8" Format="HDF">
+      example.hdf5:/radius
      </DataItem>
   </Attribute>
   <Attribute Name="Displacement" AttributeType="Vector" Center="Node">
-     <DataItem Dimensions="1000 3" NumberType="Float" Precision="8" Format="HDF">
-      example.hdf5:/U/{inc:d}
+     <DataItem Dimensions="{nnode:d} 3" NumberType="Float" Precision="8" Format="HDF">
+      example.hdf5:/disp/{inc:d}
      </DataItem>
   </Attribute>
 </Grid>
 '''
 
-# --------------------------------------------------------------------------------------------------
+# ------------------------------------------- write file -------------------------------------------
 
 # initialize string that will contain the full time series
-series = ''
+txt = ''
 
 # loop over all increments, append the time series
 for inc in range(100):
-  series += grid.format(inc=inc)
+  txt += grid.format(inc=inc,nnode=coor.shape[0])
 
 # write xmf-file, fix the indentation
-open('example.xmf','w').write(xmf.format(series='      '+series.replace('\n','\n      ')))
+open('example.xmf','w').write(xmf.format(series='      '+txt.replace('\n','\n      ')))

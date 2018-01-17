@@ -2,6 +2,8 @@
 import numpy as np
 import h5py
 
+# ====================== create fictitious configuration + store to HDF5-file ======================
+
 # nodal positions
 coor = np.array([
   [0., 0.], # 0
@@ -33,15 +35,16 @@ f.create_dataset('/conn',data=conn)
 # create a sample deformation: simple shear
 for inc,gamma in enumerate(np.linspace(0,1,100)):
 
-  # - initialize displacement (should be 3-d for ParaView)
-  U = np.zeros((coor.shape[0],3),dtype='float64')
+  # - initialize displacement (must be always 3-d in ParaView!)
+  disp = np.zeros((coor.shape[0],3),dtype='float64')
   # - set
-  U[:,0] += gamma * coor[:,1]
+  disp[:,0] += gamma * coor[:,1]
   # - store
-  f.create_dataset('/disp/%d'%inc,data=U)
+  f.create_dataset('/disp/%d'%inc,data=disp)
 
+# ======================================== write XDMF-file =========================================
 
-# ==================================================================================================
+# --------------------------------- format of the main structure ----------------------------------
 
 xmf = '''<?xml version="1.0" ?>
 <!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
@@ -54,36 +57,36 @@ xmf = '''<?xml version="1.0" ?>
 </Xdmf>
 '''
 
-# --------------------------------------------------------------------------------------------------
+# ----------------------------- format of an increment in time-series ------------------------------
 
 grid = '''<Grid Name="Increment = {inc:d}">
   <Time Value="{inc:d}"/>
-  <Topology TopologyType="Quadrilateral" NumberOfElements="4">
-    <DataItem Dimensions="4 4" Format="HDF">
+  <Topology TopologyType="Quadrilateral" NumberOfElements="{nelem:d}">
+    <DataItem Dimensions="{nelem:d} {nne:d}" Format="HDF">
     example.hdf5:/conn
     </DataItem>
   </Topology>
   <Geometry GeometryType="XY">
-    <DataItem Dimensions="9 2" Format="HDF">
+    <DataItem Dimensions="{nnode:d} 2" Format="HDF">
     example.hdf5:/coor
     </DataItem>
   </Geometry>
   <Attribute Name="Displacement" AttributeType="Vector" Center="Node">
-     <DataItem Dimensions="9 3" NumberType="Float" Precision="8" Format="HDF">
+     <DataItem Dimensions="{nnode:d} 3" NumberType="Float" Precision="8" Format="HDF">
       example.hdf5:/disp/{inc:d}
      </DataItem>
   </Attribute>
 </Grid>
 '''
 
-# --------------------------------------------------------------------------------------------------
+# ------------------------------------------- write file -------------------------------------------
 
 # initialize string that will contain the full time series
-series = ''
+txt = ''
 
 # loop over all increments, append the time series
 for inc in range(100):
-  series += grid.format(inc=inc)
+  txt += grid.format(inc=inc,nnode=coor.shape[0],nelem=conn.shape[0],nne=conn.shape[1])
 
 # write xmf-file, fix the indentation
-open('example.xmf','w').write(xmf.format(series='      '+series.replace('\n','\n      ')))
+open('example.xmf','w').write(xmf.format(series='      '+txt.replace('\n','\n      ')))
