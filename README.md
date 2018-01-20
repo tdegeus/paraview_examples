@@ -6,4 +6,4 @@ Some simple Paraview examples.
 
 ## References:
 
-* [http://xdmf.org/index.php/XDMF_Model_and_Format](XDMF documentation, including element types).
+* (XDMF documentation, including element types)[http://xdmf.org/index.php/XDMF_Model_and_Format].
