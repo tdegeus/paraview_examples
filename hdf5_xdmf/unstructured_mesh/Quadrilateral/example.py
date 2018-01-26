@@ -1,6 +1,7 @@
 
-import numpy as np
 import h5py
+import numpy      as np
+import lxml.etree as etree
 
 # ====================== create fictitious configuration + store to HDF5-file ======================
 
@@ -25,12 +26,19 @@ conn = np.array([
   [4,5,8,7],
 ])
 
-# open data file
-f = h5py.File('example.hdf5','w')
+# dimensions
+nnode = coor.shape[0]
+ndim  = coor.shape[1]
+nelem = conn.shape[0]
+nne   = conn.shape[1]
 
-# write particle positions, and a dummy connectivity
-f.create_dataset('/coor',data=coor)
-f.create_dataset('/conn',data=conn)
+# open data file
+file = h5py.File('example.hdf5','w')
+
+# write nodal coordinate, connectivity, and some dummy element quantity
+file['/coor' ] = coor
+file['/conn' ] = conn
+file['/index'] = np.arange(nelem)
 
 # create a sample deformation: simple shear
 for inc,gamma in enumerate(np.linspace(0,1,100)):
@@ -40,53 +48,43 @@ for inc,gamma in enumerate(np.linspace(0,1,100)):
   # - set
   disp[:,0] += gamma * coor[:,1]
   # - store
-  f.create_dataset('/disp/%d'%inc,data=disp)
+  file['/disp/{inc:d}'.format(inc=inc)] = disp
 
 # ======================================== write XDMF-file =========================================
 
-# --------------------------------- format of the main structure ----------------------------------
+# initialize file
+root   = etree.fromstring('<Xdmf Version="2.0"></Xdmf>')
+domain = etree.SubElement(root, "Domain")
+series = etree.SubElement(domain, "Grid", Name="TimeSeries", GridType="Collection", CollectionType="Temporal")
 
-xmf = '''<?xml version="1.0" ?>
-<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
-<Xdmf Version="2.0">
-  <Domain>
-    <Grid Name="TimeSeries" GridType="Collection" CollectionType="Temporal">
-{series:s}
-    </Grid>
-  </Domain>
-</Xdmf>
-'''
-
-# ----------------------------- format of an increment in time-series ------------------------------
-
-grid = '''<Grid Name="Increment = {inc:d}">
-  <Time Value="{inc:d}"/>
-  <Topology TopologyType="Quadrilateral" NumberOfElements="{nelem:d}">
-    <DataItem Dimensions="{nelem:d} {nne:d}" Format="HDF">
-    example.hdf5:/conn
-    </DataItem>
-  </Topology>
-  <Geometry GeometryType="XY">
-    <DataItem Dimensions="{nnode:d} 2" Format="HDF">
-    example.hdf5:/coor
-    </DataItem>
-  </Geometry>
-  <Attribute Name="Displacement" AttributeType="Vector" Center="Node">
-     <DataItem Dimensions="{nnode:d} 3" NumberType="Float" Precision="8" Format="HDF">
-      example.hdf5:/disp/{inc:d}
-     </DataItem>
-  </Attribute>
-</Grid>
-'''
-
-# ------------------------------------------- write file -------------------------------------------
-
-# initialize string that will contain the full time series
-txt = ''
-
-# loop over all increments, append the time series
+# loop over increment
 for inc in range(100):
-  txt += grid.format(inc=inc,nnode=coor.shape[0],nelem=conn.shape[0],nne=conn.shape[1])
 
-# write xmf-file, fix the indentation
-open('example.xmf','w').write(xmf.format(series='      '+txt.replace('\n','\n      ')))
+  # add time increment
+  grid = etree.SubElement(series, "Grid", Name="Increment = {inc:d}".format(inc=inc))
+
+  # set time
+  etree.SubElement(grid, "Time", Value="{inc:d}".format(inc=inc))
+
+  # add connectivity
+  conn = etree.SubElement(grid, "Topology", TopologyType="Quadrilateral", NumberOfElements='{nelem:d}'.format(nelem=nelem))
+  data = etree.SubElement(conn, "DataItem", Dimensions='{nelem:d} {nne:d}'.format(nelem=nelem,nne=nne), Format="HDF")
+  data.text = "example.hdf5:/conn"
+
+  # add coordinates
+  coor = etree.SubElement(grid, "Geometry", GeometryType="XY")
+  data = etree.SubElement(coor, "DataItem", Dimensions='{nnode:d} {ndim:d}'.format(nnode=nnode,ndim=ndim), Format="HDF")
+  data.text = "example.hdf5:/coor"
+
+  # add radius
+  index = etree.SubElement(grid, "Attribute", Name="Index", AttributeType="Scalar", Center="Cell")
+  data  = etree.SubElement(index, "DataItem", Dimensions='{nelem:d}'.format(nelem=nelem), Format="HDF")
+  data.text = "example.hdf5:/index"
+
+  # add displacement
+  disp = etree.SubElement(grid, "Attribute", Name="Displacement", AttributeType="Vector", Center="Node")
+  data = etree.SubElement(disp, "DataItem", Dimensions='{nnode:d} 3'.format(nnode=nnode), Format="HDF")
+  data.text = "example.hdf5:/disp/{inc:d}".format(inc=inc)
+
+# write to file
+open('example.xdmf','wb').write(etree.tostring(root, pretty_print=True))
